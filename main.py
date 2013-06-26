@@ -3,4 +3,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 __author__ = "Richard Eames <reames@asymmetricventures.com"
 __date__ = "Jun 26, 2013"
 
-from .parser import Parser
+from htmlparser import Parser
+
+p = Parser(b"<html>")
