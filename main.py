@@ -5,4 +5,8 @@ __date__ = "Jun 26, 2013"
 
 from htmlparser import Parser
 
-p = Parser(b"<html>")
+p = Parser(b"""
+<!DOCTYPE html>
+<!--  comment- -->
+""")
+print(p.root())
