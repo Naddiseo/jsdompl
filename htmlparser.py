@@ -17,7 +17,7 @@ def err(fn, name = None):
 		except Exception as e:
 			import traceback
 			traceback.print_exc()
-			raise Exception("Invalid {}: {}".format(fn_name, e))
+			raise Exception("Invalid {} TAG: {}".format(fn_name, e))
 	return wrapper
 
 class Parser(object):
@@ -47,19 +47,22 @@ class Parser(object):
 	def expect(self, s, ignore_case = True):
 		src = self._src(ignore_case)
 		
+		def _i(ss):
+			return ss.lower() if ignore_case else ss
+		
 		if isinstance(s, (list, tuple)):
 			for item in s:
-				if src[self.offset:].startswith(item):
+				if src[self.offset:].startswith(_i(item)):
 					self.offset += len(item)
 					self.matched_data += item
 					return item
 		
-		elif src[self.offset:].startswith(s):
+		elif src[self.offset:].startswith(_i(s)):
 			self.offset += len(s)
 			self.matched_data += s
 			return s
 		
-		raise Exception("Expected {}".format(s))
+		raise Exception("Expected '{}'".format(s))
 	
 	def _eat_matches(self, s, ignore_case):
 		src = self._src(ignore_case)
@@ -96,7 +99,7 @@ class Parser(object):
 		matches = self._eat_matches(s, ignore_case)
 		
 		if matches < 1:
-			raise Exception("Expected one or more matches of {}".format(s))
+			raise Exception("Expected one or more matches of '{}'".format(s))
 	
 	def zero_or_more(self, s, ignore_case = True):
 		self._eat_matches(s, ignore_case)
@@ -240,8 +243,29 @@ class Parser(object):
 		
 		return ('COMMENT', self.data())
 	
+	def _start_tag(self, name, can_close = False):
+		self.expect('<')
+		self.expect(name)
+		attrs = []
+		while self.is_next(self._ws):
+			attrs.push(self._parse_attr())
+		
+		self.one_or_more(self._ws)
+		if can_close and self.is_next('/'):
+			self.expect('/')
+		self.expect('>')
+		
+		return (name, self.data(), attrs)
+	
+	def _end_tag(self, name):
+		self.expect('<')
+		self.expect(name)
+		self.zero_or_more(self._ws)
+		self.expect('>')
+		return (name, self.data())
+	
 	def void_tag(self, name):
-		pass
+		return self._start_tag(name, True)
 	
 	def raw_tag(self, name):
 		pass
@@ -250,28 +274,73 @@ class Parser(object):
 		pass
 	
 	def foreign_tag(self, name):
-		pass
+		start_tag = self._start_tag(name, True)
+		if start_tag[1][-2] == '/':
+			# this is a self closing tag
+			return (name, start_tag, [], None)
 	
 	def normal_tag(self, name):
 		pass
 	
-	def tag(self, name, tp = 'void'):
-		fn = {
-			'void' : self.void_tag,
-			'raw' : self.raw_tag,
-			'eraw' : self.eraw_tag,
-			'foreign' : self.foreign_tag,
-			'normal' : self.normal_tag
-		}.get(tp, self.normal_tag)
+
 	
-	
-	HTML = err(tag('HTML'))
-	
-	t = (
-		'HEAD', 'TITLE', 'BASE', 'LINK', 'META', 'STYLE', 'SCRIPT', 'NOSCRIPT',
-		'BODY', 'ARTICLE', 'SECTION', 'NAV', 'ASIDE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HGROUP', 'HEADER', 'FOOTER', 'ADDRESS',
-		'P', 'HR', 'PRE', 'BLOCKQUOTE', 'OL', 'UL', 'LI', 'DL', 'DT', 'FIGURE', 'FIGCAPTION'
+	def _parse_attr(self):
+		self.expect(self._ws)
+		self.data() # ignore ws
 		
-	)
+		attr_name = self.expect(string.ascii_letters)
+		if self.match(r'\s*='):
+			self.eat_white()
+			self.expect('=')
+			self.eat_white()
+			
+			if self.is_next(self._qq):
+				attr_value = self._parse_string()
+			else:
+				attr_value = self.expect(string.ascii_letters + '_')
+			
+			return [attr_name, self.data(), attr_value]
+			
+		else:
+			# empty attribute
+			return [attr_name, self.data(), ""]
+	
+	def _parse_string(self):
+		q = self.c()
+		self.expect(self._qq)
+		
+		self.consume(r'(?:[^{}\\]|\\.)*'.format(q))
+		self.expect(self._qq)
+		return self.data()
+
+_fn_map = {
+	'void' : Parser.void_tag,
+	'raw' : Parser.raw_tag,
+	'eraw' : Parser.eraw_tag,
+	'foreign' : Parser.foreign_tag,
+	'normal' : Parser.normal_tag
+}
+
+t = (
+	'HEAD', 'TITLE', 'BASE', 'LINK', 'META', 'STYLE', 'SCRIPT', 'NOSCRIPT',
+	'BODY', 'ARTICLE', 'SECTION', 'NAV', 'ASIDE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HGROUP', 'HEADER', 'FOOTER', 'ADDRESS',
+	'P', 'HR', 'PRE', 'BLOCKQUOTE', 'OL', 'UL', 'LI', 'DL', 'DT', 'FIGURE', 'FIGCAPTION', 'MAIN', 'DIV',
+	'A', 'EM', 'STRONG', 'SMALL', 'S', 'CITE', 'Q', 'DFN', 'ABBR', 'DATA', 'TIME', 'CODE', 'VAR', 'SAMP', 'KBD', 'SUB', 'SUP', 'I', 'B', 'U', 'MARK', 'RUBY', 'RT', 'RP', 'BDI', 'BDO', 'SPAN', 'BR', 'WBR',
+	'INS', 'DEL',
+	'IMG', 'IFRAME', 'EMBED', 'OBJECT', 'PARAM', 'VIDEO', 'AUDIO', 'SOURCE', 'TRACK', 'CANVAS', 'MAP', 'AREA',
+	'TABLE', 'CAPTION', 'COLGROUP', 'COL', 'TBODY', 'THEAD', 'TFOOT', 'TR', 'TH', 'TD',
+	'FORM', 'FIELDSET', 'LEGEND', 'LABEL', 'INPUT', 'BUTTON', 'SELECT', 'DATALIST', 'OPTGROUP', 'OPTION', 'TEXTAREA', 'KEYGEN', 'OUPUT', 'PROGRESS', 'METER',
+	'DETAILS', 'SUMMARY', 'MENU', 'MENUITEM',
+)
+
+
+def tag(name, tp = 'void'):
+	fn = _fn_map.get(tp, Parser.normal_tag)
+	
+	return lambda self: fn(self, name)
+setattr(Parser, 'HTML', err(tag('HTML'), 'HTML'))
+
+for e in t:
+	setattr(Parser, e, err(tag(e), e))
 	
 	
