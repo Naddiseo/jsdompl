@@ -4,7 +4,7 @@ jsdompl
 
 Input:
 
-```python
+```html
 
 <a href="{{ url('foo') }}" >{{ tag }}</a>
 
