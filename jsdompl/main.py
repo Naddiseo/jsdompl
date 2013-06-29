@@ -73,3 +73,17 @@ define(['jquery', 'underscore'], function($, _) {
 	return TPL;
 });
 """
+
+
+"""
+This is the version of the template that needs to be passed into a javascript
+parser so that the required variable names can be found.
+
+var $t0 = "<a href=\"" + _.escape( url('foo') ) + "\" > " + _.escape( var_name ) + "</a>\n" +
+"<div class=\"list-display\">" +
+"    "; _.each(mylist, function(idx, item) { var $t1 = "\n" +
+"        <div class=\"list-item-" + _.escape(idx)"\"> " + item + "</div>\n" +
+"    "; }); var $t2 = "\n" +
+"</div>";
+
+"""
