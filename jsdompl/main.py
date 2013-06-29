@@ -1,91 +1,75 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import unicode_literals, division, absolute_import, print_function
 
-import html5lib
-import urllib
-from utils.text import indent_text
+__author__ = "richard"
+__created__ = "Jun 28, 2013"
 
-__author__ = "Richard Eames <reames@asymmetricventures.com>"
-__date__ = "Jun 26, 2013"
+from jsdompl.template import JSDomTemplate
 
+tpl = JSDomTemplate("""
+<a href="{{ url('foo') }}" > {{ var_name }}</a>
+<div class="list-display">
+	{% _.each(mylist, function(idx, item) { %}
+		<div class="list-item-{{idx}}"> {{{ item }}}</div>
+	{% }); %}
+</div>
+""")
 
-doc = html5lib.parseFragment("""
-<a href="{{ url('foo') }}" >{{ tag }}</a>
-""", treebuilder = "dom")
-
-node_counts = {}
-
-def parse_attr_value(value):
-	
-	tvalue = value.strip()
-	if tvalue.startswith('{{') and tvalue.endswith('}}'):
-		return tvalue[2:-2]
-	
-	return '''"{}"'''.format(value)
-
-def append_children(root_name, child_names):
-	return '\n'.join(("{}.appendChild({});".format(root_name, node_name) for node_name in child_names));
-
-def walk_node(node):
-	creation_text = ""
-	setup_text = ""
-	name = node.nodeName.lower()
-	if name != "#text" and name.startswith('#'):
-		return '', '', ''
-	
-	node_counts.setdefault(name, -1)
-	node_counts[name] += 1
-	
-	if name == "#text":
-		var_name = "$text_node{}".format(node_counts[name])
-		var_text = node.data.replace('\n', '\\n').encode('ascii', 'xmlcharrefreplace')
-		creation_text = '''var {} = T("{}");\n'''.format(var_name, var_text)
-		return var_name, creation_text, setup_text 
-	
-	var_name = "_{}{}".format(name, node_counts[name])
-	
-	creation_text = "var {} = C('{}');\n".format(var_name, name)
-	
-	if node.hasAttributes():
-		for k, v in node.attributes.items():
-			setup_text += '''{}.setAttribute("{}", {});\n'''.format(var_name, k, parse_attr_value(v))
-	
-	nodes_names, new_nodes, nodes_setup = walk_children(node)
-	
-	setup_text += '\n'.join(new_nodes) + '\n'.join(nodes_setup)
-	setup_text += append_children(var_name, nodes_names)
-	
-	return var_name, creation_text, setup_text
-
-def walk_children(node):
-	node_names = []
-	new_nodes = []
-	nodes_setup = []
-	
-	for child in  node.childNodes:
-		var_name, creation_text, setup_text = walk_node(child)
-		node_names.append(var_name)
-		new_nodes.append(creation_text)
-		nodes_setup.append(setup_text)
-	return node_names, new_nodes, nodes_setup
-
-def walk_doc(doc):
-	node_names, new_nodes, nodes_setup = walk_children(doc)
-	
-	setup_text = '\n'.join(new_nodes) + '\n'.join(nodes_setup)
-	
-	return setup_text + append_children("$root", node_names)
-		
-
-tpl = """
-define([], function() {{
+"""
+define(['jquery', 'underscore'], function($, _) {
 	var C = document.createElement;
 	var T = document.createTextNode;
-	function TPL() {{
-		var $root = document.createDocumentFragment();
-{tpl_body}
-		return $root;
-	}}
+	var F = document.createDocumentFragment;
+	function TPL(url, var_name) {
+		var $root0 = F();
+		var $a0 = C('a');
+		var $text0 = T('\n');
+		var $text1 = T(' ');
+		var $div0 = C('div');
+		var $text2 = T('\n\t');
+		var $text3 = T('\n');
+		
+		$root.appendChild($a0);
+		$root.appendChild($text0);
+		$root.appendChild($div0);
+		$root.appendChild($text3);
+		
+		$a0.appendChild($text1);
+		
+		var $tmp0 = url('foo');
+		$a0.setAttribute("href", $tmp0);
+		
+		var $tmp1 = _.escape(var_name);
+		$text1.data += $tmp1;
+		
+		$div0.appendChild($text2);
+		
+		$div0.className = 'list-display';
+		
+		_.each(mylist, function(idx, item) {
+			var $root1 = F();
+			var $text4 = T('\n\t\t');
+			var $div1 = C('div');
+			var $text5 = T(' ');
+			var $text6 = T('\n\t');
+			
+			$root1.appendChild($text4);
+			$root1.appendChild($div1);
+			$root1.appendChild($text6);
+			
+			$div1.appendChild($text5);
+			
+			var $tmp2 = _.escape(idx);
+			var $tmp3 = "list-item-" + $tmp2;
+			$div1.className = $tmp4;
+			
+			var $tmp4 = item;
+			$text5.data += $tmp4;
+			
+			$div0.appendChild($root1);
+		});
+		
+		return $root0;
+	}
 	return TPL;
-}});""".format(tpl_body = indent_text(walk_doc(doc), 2))
-
-print(tpl)
+});
+"""
