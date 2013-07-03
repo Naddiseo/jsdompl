@@ -42,7 +42,8 @@ define([], function() {
 Input2:
 
 ```html
-
+<!-- require({'jquery' : '$', 'underscore' : '_'}) -->
+<!-- globals('url', 'mylist', 'var_name') -->
 
 <a href="{{ url('foo') }}" > {{ var_name }}</a>
 <div class="list-display">
@@ -62,7 +63,7 @@ define(['jquery', 'underscore'], function($, _) {
 	var C = document.createElement;
 	var T = document.createTextNode;
 	var F = document.createDocumentFragment;
-	function TPL(url, var_name) {
+	function TPL(url, mylist, var_name) {
 		var $root0 = F();
 		var $a0 = C('a');
 		var $text0 = T('\n');
