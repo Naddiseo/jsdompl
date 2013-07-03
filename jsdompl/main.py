@@ -6,6 +6,8 @@ __created__ = "Jun 28, 2013"
 from jsdompl.template import JSDomTemplate
 
 tpl = JSDomTemplate("""
+<!-- require({'jquery' : '$', 'underscore' : '_'}) -->
+<!-- globals('mylist', 'url', 'var_name') -->
 <a href="{{ url('foo') }}" > {{ var_name }}</a>
 <div class="list-display">
 	{% _.each(mylist, function(idx, item) { %}
@@ -13,6 +15,9 @@ tpl = JSDomTemplate("""
 	{% }); %}
 </div>
 """)
+
+tpl._walk_doc()
+print(tpl.get_template())
 
 """
 define(['jquery', 'underscore'], function($, _) {
