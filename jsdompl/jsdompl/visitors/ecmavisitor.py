@@ -33,7 +33,7 @@ class ECMAVisitor(object):
 		self.indent_level = 0
 
 	def _make_indent(self):
-		return ' ' * self.indent_level
+		return '\t' * self.indent_level
 
 	def visit(self, node):
 		method = 'visit_%s' % node.__class__.__name__
@@ -47,10 +47,10 @@ class ECMAVisitor(object):
 
 	def visit_Block(self, node):
 		s = '{\n'
-		self.indent_level += 2
+		self.indent_level += 1
 		s += '\n'.join(
 			self._make_indent() + self.visit(child) for child in node)
-		self.indent_level -= 2
+		self.indent_level -= 1
 		s += '\n' + self._make_indent() + '}'
 		return s
 
@@ -82,12 +82,12 @@ class ECMAVisitor(object):
 		template = 'get %s() {\n%s\n%s}'
 		if getattr(node, '_parens', False):
 			template = '(%s)' % template
-		self.indent_level += 2
+		self.indent_level += 1
 		body = '\n'.join(
 			(self._make_indent() + self.visit(el))
 			for el in node.elements
 			)
-		self.indent_level -= 2
+		self.indent_level -= 1
 		tail = self._make_indent()
 		return template % (self.visit(node.prop_name), body, tail)
 
@@ -99,12 +99,12 @@ class ECMAVisitor(object):
 			raise SyntaxError(
 				'Setter functions must have one argument: %s' % node)
 		params = ','.join(self.visit(param) for param in node.parameters)
-		self.indent_level += 2
+		self.indent_level += 1
 		body = '\n'.join(
 			(self._make_indent() + self.visit(el))
 			for el in node.elements
 			)
-		self.indent_level -= 2
+		self.indent_level -= 1
 		tail = self._make_indent()
 		return template % (self.visit(node.prop_name), params, body, tail)
 
@@ -235,33 +235,33 @@ class ECMAVisitor(object):
 
 	def visit_Switch(self, node):
 		s = 'switch (%s) {\n' % self.visit(node.expr)
-		self.indent_level += 2
+		self.indent_level += 1
 		for case in node.cases:
 			s += self._make_indent() + self.visit_Case(case)
 		if node.default is not None:
 			s += self.visit_Default(node.default)
-		self.indent_level -= 2
+		self.indent_level -= 1
 		s += self._make_indent() + '}'
 		return s
 
 	def visit_Case(self, node):
 		s = 'case %s:\n' % self.visit(node.expr)
-		self.indent_level += 2
+		self.indent_level += 1
 		elements = '\n'.join(self._make_indent() + self.visit(element)
 							 for element in node.elements)
 		if elements:
 			s += elements + '\n'
-		self.indent_level -= 2
+		self.indent_level -= 1
 		return s
 
 	def visit_Default(self, node):
 		s = self._make_indent() + 'default:\n'
-		self.indent_level += 2
+		self.indent_level += 1
 		s += '\n'.join(self._make_indent() + self.visit(element)
 					   for element in node.elements)
 		if node.elements is not None:
 			s += '\n'
-		self.indent_level -= 2
+		self.indent_level -= 1
 		return s
 
 	def visit_Throw(self, node):
@@ -290,10 +290,10 @@ class ECMAVisitor(object):
 		return s
 
 	def visit_FuncDecl(self, node):
-		self.indent_level += 2
+		self.indent_level += 1
 		elements = '\n'.join(self._make_indent() + self.visit(element)
 							 for element in node.elements)
-		self.indent_level -= 2
+		self.indent_level -= 1
 
 		s = 'function %s(%s) {\n%s' % (
 			self.visit(node.identifier),
@@ -304,10 +304,10 @@ class ECMAVisitor(object):
 		return s
 
 	def visit_FuncExpr(self, node):
-		self.indent_level += 2
+		self.indent_level += 1
 		elements = '\n'.join(self._make_indent() + self.visit(element)
 							 for element in node.elements)
-		self.indent_level -= 2
+		self.indent_level -= 1
 
 		ident = node.identifier
 		ident = '' if ident is None else ' %s' % self.visit(ident)
@@ -370,10 +370,10 @@ class ECMAVisitor(object):
 
 	def visit_Object(self, node):
 		s = '{\n'
-		self.indent_level += 2
+		self.indent_level += 1
 		s += ',\n'.join(self._make_indent() + self.visit(prop)
 						for prop in node.properties)
-		self.indent_level -= 2
+		self.indent_level -= 1
 		if node.properties:
 			s += '\n'
 		s += self._make_indent() + '}'

@@ -21,13 +21,14 @@
 # THE SOFTWARE.
 #
 ###############################################################################
+from ply.lex import LexToken
 
 __author__ = 'Ruslan Spivak <ruslan.spivak@gmail.com>'
 
 import ply.yacc
 
 from . import ast
-from .lexer import Lexer
+from .htmllexer import Lexer
 
 try:
 	from . import lextab, yacctab
@@ -74,12 +75,21 @@ class Parser(object):
 		if token is None:
 			return False
 		key = token.type, token.value, token.lineno, token.lexpos
+		try:
+			hash(key)
+		except TypeError:
+			key = str(key)
 		return key in self._error_tokens
 
 	def _mark_as_seen(self, token):
 		if token is None:
 			return
 		key = token.type, token.value, token.lineno, token.lexpos
+		try:
+			hash(key)
+		except TypeError:
+			key = str(key)
+		
 		self._error_tokens[key] = True
 
 	def _raise_syntax_error(self, token):
@@ -169,6 +179,7 @@ class Parser(object):
 					 | try_statement
 					 | debugger_statement
 					 | function_declaration
+					 | html_source
 		"""
 		p[0] = p[1]
 
@@ -1221,3 +1232,44 @@ class Parser(object):
 	def p_function_body(self, p):
 		"""function_body : source_elements"""
 		p[0] = p[1]
+	
+	
+	def p_html_source(self, p):
+		""" html_source : html_data
+		                | html_doctype
+		                | html_tag
+		"""
+		p[0] = p[1]
+	
+	def p_html_data(self, p):
+		""" html_data : HTML_CHARS
+		              | HTML_WS
+		              | HTML_COMMENT
+		"""
+		p[0] = ast.HTMLData(data = p[1])
+	
+	def p_html_doctype(self, p):
+		""" html_doctype : HTML_DOCTYPE
+		"""
+		# ignore for now
+		pass
+	
+	def p_html_tag(self, p):
+		""" html_tag : HTML_STARTTAG
+		             | HTML_ENDTAG
+		             | HTML_EMPTYTAG
+		"""
+		if not isinstance(p[1], LexToken):
+			return
+		if p[1].type == 'HTML_ENDTAG':
+			p[0] = ast.HTMLEndTag(name = p[1])
+		
+		elif p[1].type == 'HTML_STARTTAG':
+			p[0] = ast.HTMLTag(
+				name = p[1].name,
+				self_closing = p[1].self_closing,
+				attrs = p[1].attrs
+			)
+		
+		else:
+			p[0] = ast.HTMLData(data = p[1])

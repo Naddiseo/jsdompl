@@ -5,6 +5,7 @@ __created__ = "Jun 28, 2013"
 
 from jsdompl.template import JSDomTemplate
 from jsdompl.htmllexer import Lexer
+from jsdompl.parser import Parser
 
 tpl = JSDomTemplate("""
 <!-- define({'jquery' : '$', 'underscore' : '_'}) -->
@@ -23,12 +24,17 @@ tpl = JSDomTemplate("""
 l = Lexer()
 l.input("""{% if (1) { %}
 <a>asdf </a>
+<div></div>
 {% } %}
 """)
 
-for t in l:
-	print(t)
 
+p = Parser(yacc_debug = True, yacc_optimize = False, yacctab = '')
+ast = p.parse(tpl.text, debug = True)
+
+from jsdompl.visitors.ecmavisitor import ECMAVisitor
+
+print(ECMAVisitor().visit(ast))
 """
 define(['jquery', 'underscore'], function($, _) {
 	var C = document.createElement;

@@ -26,13 +26,17 @@ def lex_token__str__(self):
 
 setattr(LexToken, '__str__', lex_token__str__)
 
-class Lexer(object):
-	
-	def __init__(self):
-		self.next_tokens = []
+class Lexer(JSLexer):
+	tokens = tuple(list(JSLexer.tokens) + [
+		'HTML_CHARS', 'HTML_WS', 'HTML_COMMENT',
+		'HTML_DOCTYPE', 'HTML_STARTTAG', 'HTML_ENDTAG', 'HTML_EMPTYTAG'
+	])
 	
 	def input(self, text):
 		self.lexer = HTMLTokenizer(text)
+	
+	def build(self, **kwargs):
+		pass
 	
 	def _html_token(self):
 		for t in self.lexer:

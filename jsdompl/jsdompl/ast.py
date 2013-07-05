@@ -21,6 +21,7 @@
 # THE SOFTWARE.
 #
 ###############################################################################
+from chardet.constants import False
 
 __author__ = 'Ruslan Spivak <ruslan.spivak@gmail.com>'
 
@@ -411,5 +412,28 @@ class This(Node):
 	def __init__(self):
 		pass
 
+	def children(self):
+		return []
+
+class HTMLTag(Node):
+	def __init__(self, name, attrs = [], self_closing = False):
+		self.name = name
+		self.self_closing = self_closing
+		self.attrs = list(attrs)
+	
+	def children(self):
+		return self.attrs
+
+class HTMLEndTag(Node):
+	def __init__(self, name):
+		self.name = name
+	
+	def children(self):
+		return []
+
+class HTMLData(Node):
+	def __init__(self, data):
+		self.data = data
+	
 	def children(self):
 		return []
