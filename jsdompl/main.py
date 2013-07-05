@@ -4,10 +4,12 @@ __author__ = "richard"
 __created__ = "Jun 28, 2013"
 
 from jsdompl.template import JSDomTemplate
+from jsdompl.htmllexer import Lexer
 
 tpl = JSDomTemplate("""
 <!-- define({'jquery' : '$', 'underscore' : '_'}) -->
 <!-- Template('mylist', 'url', 'var_name') -->
+<br>
 <a href="{{ url('foo') }}" > {{ var_name }}</a>
 <div class="list-display">
 	{% _.each(mylist, function(idx, item) { %}
@@ -16,7 +18,16 @@ tpl = JSDomTemplate("""
 </div>
 """)
 
-print(tpl.get_template())
+#print(tpl.get_template())
+
+l = Lexer()
+l.input("""{% if (1) { %}
+<a>asdf </a>
+{% } %}
+""")
+
+for t in l:
+	print(t)
 
 """
 define(['jquery', 'underscore'], function($, _) {
