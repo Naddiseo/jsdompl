@@ -23,11 +23,14 @@ tpl = JSDomTemplate("""
 #print(tpl.get_template())
 
 input1 = """\
-<a></a>
+<a href="" enabled>{{A}}
+	{% if (1) { %} {{{ b }}}
+	{% } %}
+</a>
 """
 
 
-source = input1
+source = tpl.text
 
 l = Lexer()
 l.input(source)
@@ -35,8 +38,8 @@ l.input(source)
 
 
 p = Parser(yacc_debug = False, yacc_optimize = False, yacctab = '')
-#for t in l:
-#	print(t)
+for t in l:
+	print(t)
 ast = p.parse(source, debug = False)
 print(JSDomplVisitor().visit(ast))
 """

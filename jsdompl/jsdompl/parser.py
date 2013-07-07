@@ -1307,7 +1307,10 @@ class Parser(object):
 		              | HTML_WS
 		              | HTML_COMMENT
 		"""
-		p[0] = ast.HTMLData(data = p[1])
+		if isinstance(p[1], dict):
+			p[0] = ast.HTMLData(data = p[1]['data'])
+		else:
+			p[1] = ast.HTMLData(data = p[1])
 	
 	def p_html_escaped_js(self, p):
 		""" html_escaped_js : ESCAPED_OPEN expr ESCAPED_TERMINATOR
@@ -1330,12 +1333,13 @@ class Parser(object):
 	def p_html_tag(self, p):
 		""" html_tag : HTML_STARTTAG source_elements HTML_ENDTAG
 		"""
-		print (p[1])
-		if isinstance(p[1], LexToken):
+		
+		if isinstance(p[1], dict):
 			
 			p[0] = ast.HTMLTag(
-					name = p[1].name,
-					self_closing = p[1].self_closing,
-					attrs = p[1].attrs,
-					inner = ast.HTMLDataList(p[2])
+					name = p[1]['name'],
+					self_closing = p[1]['self_closing'],
+					attrs = p[1]['attrs'],
+					inner = p[2]
 			)
+			p[0].is_stmt = True

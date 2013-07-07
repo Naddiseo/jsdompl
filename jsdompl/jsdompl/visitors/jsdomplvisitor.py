@@ -11,15 +11,20 @@ class Visitor(object):
 		return getattr(self, method, self.generic_visit)(node)
 
 	def generic_visit(self, node):
-		return 'GEN: {}'.format(node)
+#		if node is None:
+#			return ''
+#		return 'GEN: {}'.format(node)
 		if node is None:
-			return
+			return ''
 		if isinstance(node, list):
-			for child in node:
-				self.visit(child)
+			return '\n'.join(
+				self.visit(child) for child in node
+			)
 		else:
-			for child in node.children():
-				self.visit(child)
+			return '\n'.join (
+				self.visit(child) for child in node.children()
+			)
+				
 
 class JSDomplVisitor(Visitor):
 	
@@ -30,7 +35,7 @@ class JSDomplVisitor(Visitor):
 		self.roots = []
 		self.html_count = -1
 		
-		self.children_to_add = []
+		self.children_to_add = [[]]
 	
 	def current_root(self):
 		return self.roots[-1]
@@ -47,19 +52,27 @@ class JSDomplVisitor(Visitor):
 		self.text_count += 1
 		return '$$text{}'.format(self.text_count)
 	
-	def push_scope(self):
-		self.roots.append(self.make_root())
+	def add_child(self, child):
+		self.children_to_add[-1].append(child)
+	
+	def push_scope(self, root = None):
+		ret = ''
+		if root is None:
+			root = self.make_root()
+			ret = '{}var {} = F();\n'
+		self.roots.append(root)
+		self.children_to_add.append([])
 		
-		return '{}var {} = F();\n'.format(self.indent(), self.current_root())
+		return ret.format(self.indent(), self.current_root())
 	
 	def pop_scope(self):
 		ret = ''
 		old_root = self.roots.pop()
-		for child in self.children_to_add:
+		children_to_add = self.children_to_add.pop()
+		for child in children_to_add:
 			ret += '{}{}.appendChild({});\n'.format(self.indent(), old_root, child)
 		if len(self.roots):
 			ret += '{}{}.appendChild({});\n'.format(self.indent(), self.current_root(), old_root)
-		self.children_to_add = [] 
 		return ret
 	
 	def indent(self):
@@ -82,7 +95,7 @@ class JSDomplVisitor(Visitor):
 		
 		ret += self.pop_scope()
 		self.indent_level -= 1
-		ret += '\n' + self.indent() + '}'
+		ret += '\n' + self.indent() + '}\n'
 		return ret
 	
 	def visit_HTMLJSContainer(self, node):
@@ -434,7 +447,7 @@ class JSDomplVisitor(Visitor):
 	def visit_HTMLDataList(self, node):
 		if len(node):
 			txt_var = self.make_text()
-			self.children_to_add.append(txt_var)
+			self.add_child(txt_var)
 			ret = 'var {} = '.format(txt_var)
 			
 			ret += ' + '.join(self.visit(child) for child in node)
@@ -446,12 +459,14 @@ class JSDomplVisitor(Visitor):
 	def visit_HTMLTag(self, node):
 		var_name = self.make_html_node(node.name)
 		ret = 'var {} = C("{}");\n'.format(var_name, node.name)
-		
+		self.add_child(var_name)
 		if not node.self_closing:
-			ret += self.push_scope()
+			ret += self.push_scope(var_name)
 			ret += self.visit(node.inner)
 			ret += self.pop_scope()
-		# TODO: node.attrs
+		if len(node.attrs):
+			for attr_name, attr_value in node.attrs:
+				pass
 		
 		return ret
 			
