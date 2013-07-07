@@ -36,6 +36,11 @@ class JSDomplVisitor(Visitor):
 		self.html_count = -1
 		
 		self.children_to_add = [[]]
+		
+		self.define_args = {}
+		self.template_args = []
+		
+		self.root_map = {}
 	
 	def current_root(self):
 		return self.roots[-1]
@@ -60,6 +65,7 @@ class JSDomplVisitor(Visitor):
 		if root is None:
 			root = self.make_root()
 			ret = '{}var {} = F();\n'
+		self.root_map.setdefault(root, {})
 		self.roots.append(root)
 		self.children_to_add.append([])
 		
@@ -69,10 +75,16 @@ class JSDomplVisitor(Visitor):
 		ret = ''
 		old_root = self.roots.pop()
 		children_to_add = self.children_to_add.pop()
+		
 		for child in children_to_add:
-			ret += '{}{}.appendChild({});\n'.format(self.indent(), old_root, child)
+			if child not in self.root_map[old_root]:
+				ret += '{}{}.appendChild({});\n'.format(self.indent(), old_root, child)
+				self.root_map[old_root][child] = 1
+		
 		if len(self.roots):
-			ret += '{}{}.appendChild({});\n'.format(self.indent(), self.current_root(), old_root)
+			if old_root not in self.root_map[self.current_root()]:
+				ret += '{}{}.appendChild({});\n'.format(self.indent(), self.current_root(), old_root)
+				self.root_map[self.current_root()][old_root] = 1
 		return ret
 	
 	def indent(self):
@@ -240,7 +252,7 @@ class JSDomplVisitor(Visitor):
 	def visit_DoWhile(self, node):
 		s = 'do '
 		s += self.visit(node.statement)
-		s += ' while ({});'.format(self.visit(node.predicate))
+		s += ' while ({});\n'.format(self.visit(node.predicate))
 		return s
 
 	def visit_While(self, node):
@@ -256,16 +268,16 @@ class JSDomplVisitor(Visitor):
 
 	def visit_Continue(self, node):
 		if node.identifier is not None:
-			s = 'continue {};'.format(self.visit_Identifier(node.identifier))
+			s = 'continue {};\n'.format(self.visit_Identifier(node.identifier))
 		else:
-			s = 'continue;'
+			s = 'continue;\n'
 		return s
 
 	def visit_Break(self, node):
 		if node.identifier is not None:
-			s = 'break {};'.format(self.visit_Identifier(node.identifier))
+			s = 'break {};\n'.format(self.visit_Identifier(node.identifier))
 		else:
-			s = 'break;'
+			s = 'break;\n'
 		return s
 
 	def visit_Return(self, node):
@@ -343,10 +355,7 @@ class JSDomplVisitor(Visitor):
 		body = ''
 		
 		self.indent_level += 1
-		# TODO: I'm not sure the scopes need to be pushed
-		body += self.push_scope()
 		body += '\n'.join(self.indent() + self.visit(element) for element in node.elements)
-		body += self.pop_scope()
 		self.indent_level -= 1
 
 		return 'function {}({}) {{\n{}\n{}}}'.format(self.visit(node.identifier), params, body, self.indent())
@@ -446,11 +455,12 @@ class JSDomplVisitor(Visitor):
 	
 	def visit_HTMLDataList(self, node):
 		if len(node):
+			node_parts = filter(lambda x: x and len(x), (self.visit(child) for child in node))
 			txt_var = self.make_text()
 			self.add_child(txt_var)
 			ret = 'var {} = '.format(txt_var)
 			
-			ret += ' + '.join(self.visit(child) for child in node)
+			ret += ' + '.join(node_parts)
 			
 			ret += ';\n'
 			return ret
@@ -460,18 +470,40 @@ class JSDomplVisitor(Visitor):
 		var_name = self.make_html_node(node.name)
 		ret = 'var {} = C("{}");\n'.format(var_name, node.name)
 		self.add_child(var_name)
-		if not node.self_closing:
+		if not node.void:
 			ret += self.push_scope(var_name)
+			
 			ret += self.visit(node.inner)
 			ret += self.pop_scope()
 		if len(node.attrs):
+			from jsdompl.parser import Parser
+			p = Parser(lex_optimize = False, lextab = '', yacc_optimize = False, yacctab = '', yacc_debug = False)
+			
 			for attr_name, attr_value in node.attrs:
-				pass
+				attr_ast = p.parse(attr_value)
+				if isinstance(attr_ast, ast.Program):
+					v = ''
+					ret += self.push_scope()
+					tmp_var = self.roots[-1]
+					ret += self.visit(attr_ast.children())
+					self.roots.pop()
+					children_to_add = self.children_to_add.pop()
+					
+					for child in children_to_add:
+						if child not in self.root_map[tmp_var]:
+							ret += '{}{}.appendChild({});\n'.format(self.indent(), tmp_var, child)
+							self.root_map[tmp_var][child] = 1
+					v = tmp_var
+				else:
+					v = ''
+				ret += '{}.setAttribute("{}", {});\n'.format(var_name, attr_name, v.replace('\n', '\\n').replace('"', '\\"'))
+				
 		
 		return ret
 			
 			
-		
+	def visit_HTMLComment(self, node):
+		return ''
 	
 	def visit_HTMLData(self, node):
 		return '"{}"'.format(node.data)

@@ -5,7 +5,7 @@ __date__ = "Jul 4, 2013"
 
 import re
 
-from html5lib.constants import tokenTypes
+from html5lib.constants import tokenTypes, voidElements
 from html5lib.tokenizer import HTMLTokenizer
 from ply.lex import LexToken
 
@@ -29,7 +29,7 @@ setattr(LexToken, '__str__', lex_token__str__)
 class Lexer(JSLexer):
 	tokens = tuple(list(JSLexer.tokens) + [
 		'HTML_CHARS', 'HTML_WS', 'HTML_COMMENT',
-		'HTML_DOCTYPE', 'HTML_STARTTAG', 'HTML_ENDTAG', 'HTML_EMPTYTAG',
+		'HTML_DOCTYPE', 'HTML_STARTTAG', 'HTML_ENDTAG', 'HTML_EMPTYTAG', 'HTML_VOID_TAG',
 		'JS_OPEN', 'ESCAPED_OPEN', 'EXPRESSION_OPEN'
 	])
 	
@@ -58,7 +58,7 @@ class Lexer(JSLexer):
 			yield t
 	
 	def token(self):
-		if self.next_tokens:
+		if len(self.next_tokens):
 			return self.next_tokens.pop(0)
 		
 		try:
@@ -77,7 +77,7 @@ class Lexer(JSLexer):
 			while endtext is not None:
 				endtext = self._parse_chars(endtext)
 			
-			return self.next_tokens.pop(0)
+			return self.token()
 			
 		return tok
 	
@@ -105,6 +105,8 @@ class Lexer(JSLexer):
 		if isinstance(html_token['data'], (list, tuple)):
 			token.value['attrs'] = html_token['data']
 			token.value['data'] = ''
+			if token.value['name'].lower() in voidElements:
+				token.type = 'HTML_VOID_TAG'
 		else:
 			token.value['data'] = html_token['data']
 		

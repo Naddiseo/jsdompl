@@ -21,7 +21,6 @@
 # THE SOFTWARE.
 #
 ###############################################################################
-from ply.lex import LexToken
 
 __author__ = 'Ruslan Spivak <ruslan.spivak@gmail.com>'
 
@@ -60,6 +59,8 @@ class Parser(object):
 		self.parser = ply.yacc.yacc(
 			module = self, optimize = yacc_optimize,
 			debug = yacc_debug, tabmodule = yacctab, start = 'program')
+		
+		self.semi_count = 0
 
 		# https://github.com/rspivak/slimit/issues/29
 		# lexer.auto_semi can cause a loop in a parser
@@ -126,11 +127,15 @@ class Parser(object):
 		# https://github.com/rspivak/slimit/issues/29
 		if self._has_been_seen_before(token):
 			self._raise_syntax_error(token)
-
+		
+		if self.semi_count:
+			return None
+		
 		if token is None or token.type != 'SEMI':
 			next_token = self.lexer.auto_semi(token)
 			if next_token is not None:
 				# https://github.com/rspivak/slimit/issues/29
+				self.semi_count += 1
 				self._mark_as_seen(token)
 				self.parser.errok()
 				return next_token
@@ -1299,18 +1304,23 @@ class Parser(object):
 		                 | html_escaped_js
 		                 | html_embedded_js
 		                | html_tag
+		                | html_comment
 		"""
 		p[0] = p[1]
 	
 	def p_html_data(self, p):
 		""" html_data : HTML_CHARS
 		              | HTML_WS
-		              | HTML_COMMENT
 		"""
 		if isinstance(p[1], dict):
 			p[0] = ast.HTMLData(data = p[1]['data'])
 		else:
 			p[1] = ast.HTMLData(data = p[1])
+	
+	def p_html_comment(self, p):
+		""" html_comment : HTML_COMMENT
+		"""
+		p[0] = ast.HTMLComment(data = p[1])
 	
 	def p_html_escaped_js(self, p):
 		""" html_escaped_js : ESCAPED_OPEN expr ESCAPED_TERMINATOR
@@ -1332,14 +1342,16 @@ class Parser(object):
 	
 	def p_html_tag(self, p):
 		""" html_tag : HTML_STARTTAG source_elements HTML_ENDTAG
+		             | HTML_VOID_TAG
 		"""
 		
 		if isinstance(p[1], dict):
-			
+			inner = None if len(p) < 3 else p[2]
 			p[0] = ast.HTMLTag(
 					name = p[1]['name'],
 					self_closing = p[1]['self_closing'],
 					attrs = p[1]['attrs'],
-					inner = p[2]
+					inner = inner,
+					void = len(p) == 2
 			)
 			p[0].is_stmt = True

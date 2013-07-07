@@ -416,11 +416,12 @@ class This(Node):
 		return []
 
 class HTMLTag(Node):
-	def __init__(self, name, attrs = [], self_closing = False, inner = None):
+	def __init__(self, name, attrs = [], self_closing = False, inner = None, void = False):
 		self.name = name
 		self.self_closing = self_closing
 		self.attrs = list(attrs)
 		self.inner = inner
+		self.void = void
 	
 	def children(self):
 		return [self.name, self.inner] + self.attrs 
@@ -459,3 +460,10 @@ class HTMLDataList(Node):
 	
 	def children(self):
 		return self.data_list
+
+class HTMLComment(Node):
+	def __init__(self, data):
+		self.data = data
+	
+	def children(self):
+		return []

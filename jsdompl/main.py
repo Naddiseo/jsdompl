@@ -23,10 +23,10 @@ tpl = JSDomTemplate("""
 #print(tpl.get_template())
 
 input1 = """\
-<a href="" enabled>{{A}}
-	{% if (1) { %} {{{ b }}}
-	{% } %}
-</a>
+{% if (1) { %}
+<a href="{{ hello }}">{{ a}}</a>
+<br />
+{% } %}
 """
 
 
