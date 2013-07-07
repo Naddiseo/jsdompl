@@ -3,6 +3,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 __author__ = "Richard Eames <reames@asymmetricventures.com>"
 __date__ = "Jul 5, 2013"
 
+import re
+import parser
+from collections import OrderedDict
+
 from .. import ast
 
 class Visitor(object):
@@ -37,8 +41,8 @@ class JSDomplVisitor(Visitor):
 		
 		self.children_to_add = [[]]
 		
-		self.define_args = {}
-		self.template_args = []
+		self.needed_args = OrderedDict()
+		self.tpl_args = []
 		
 		self.root_map = {}
 	
@@ -500,10 +504,48 @@ class JSDomplVisitor(Visitor):
 				
 		
 		return ret
-			
-			
+	
 	def visit_HTMLComment(self, node):
+		comment_data = node.data.strip()
+		if re.match(r'^\s*define\([^\)]*\)\s*$', comment_data):
+			st = parser.expr(comment_data)
+			c = st.compile()
+			ret = eval(c, {'define' : lambda x:x})
+			if not isinstance(ret, dict):
+				raise Exception("Found a require() comment that does not specify a dict")
+			self.needed_args = OrderedDict(ret)
+		
+		elif re.match(r'^\s*Template\([^\)]*\)\s*$', comment_data):
+			st = parser.expr(comment_data)
+			c = st.compile()
+			ret = eval(c, {'Template' : lambda *args: list(args)})
+			if not isinstance(ret, list):
+				raise Exception("Found a Template() comment that does not specify a list of globals")
+			self.tpl_vars = ret
 		return ''
 	
 	def visit_HTMLData(self, node):
 		return '"{}"'.format(node.data)
+	
+	def parse_attribute_value(self, value):
+		""" Returns an AST for the attribute value
+		"""
+		ret = []
+		state = 'html'
+		
+		while len(value):
+			c = value.pop(0)
+			
+			if state == 'html':
+				if c == '{':
+					c2 = value[i + 1]
+					if c2 == '{':
+						c3 = value[i + 2]
+						if c3 == '{':
+							state = 'js expression'
+							
+							i += 3
+							continue
+		
+		
+		return ret

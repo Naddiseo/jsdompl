@@ -4,8 +4,6 @@ import re
 import parser
 from collections import OrderedDict
 
-import html5lib
-
 from .utils import indent_text
 
 __author__ = "richard"
@@ -27,7 +25,6 @@ define([{requirements}], function({require_args}) {{
 	
 	def __init__(self, text):
 		self.text = text
-		self.doc = html5lib.parseFragment(text, treebuilder = "dom")
 		self.node_counts = {}
 		
 		self.needed_args = OrderedDict()

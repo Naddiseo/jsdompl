@@ -23,14 +23,11 @@ tpl = JSDomTemplate("""
 #print(tpl.get_template())
 
 input1 = """\
-{% if (1) { %}
-<a href="{{ hello }}">{{ a}}</a>
-<br />
-{% } %}
+<a title="title" href="hello-{{ b }}"></a>
 """
 
 
-source = tpl.text
+source = input1
 
 l = Lexer()
 l.input(source)
