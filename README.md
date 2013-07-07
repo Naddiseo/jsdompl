@@ -44,7 +44,7 @@ Input2:
 ```html
 <!-- require({'jquery' : '$', 'underscore' : '_'}) -->
 <!-- globals('url', 'mylist', 'var_name') -->
-
+<br>
 <a href="{{ url('foo') }}" > {{ var_name }}</a>
 <div class="list-display">
 	{% _.each(mylist, function(idx, item) { %}
@@ -54,6 +54,61 @@ Input2:
 
 
 ```
+
+Current output:
+
+```javascript
+
+var $$root0 = F();
+var $$text0 = "\n" + "\n" + "\n";
+
+var $$br0 = C("br");
+
+var $$text1 = "\n";
+
+var $$a1 = C("a");
+var $$text2 = " " + escape($_var_name);
+$$a1.appendChild($$text2);
+$$root0.appendChild($$a1);
+var $$root1 = F();
+var $$text3 = escape($_url('foo'));
+$$root1.appendChild($$text3);
+$$a1.setAttribute("href", $$root1);
+
+var $$text4 = "\n";
+
+var $$div2 = C("div");
+var $$text5 = "\n	";
+
+$__.$_each($_mylist, function($_idx, $_item) {
+	var $$div3 = C("div");
+var $$text6 = " " + $_item;
+	$$div3.appendChild($$text6);
+	$$div2.appendChild($$div3);
+	var $$root2 = F();
+var $$text7 = escape($_idx);
+	$$root2.appendChild($$text7);
+$$div3.setAttribute("class", $$root2);
+
+	var $$text8 = "\n	";
+
+	
+});$$div2.appendChild($$text5);
+$$div2.appendChild($$text8);
+$$root0.appendChild($$div2);
+var $$root3 = F();
+$$div2.setAttribute("class", $$root3);
+
+var $$text9 = "\n";
+$$root0.appendChild($$text0);
+$$root0.appendChild($$br0);
+$$root0.appendChild($$text1);
+$$root0.appendChild($$text4);
+$$root0.appendChild($$text9);
+
+
+```
+
 
 Eventual output:
 
