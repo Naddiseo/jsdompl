@@ -70,6 +70,8 @@ class Parser(object):
 		# a SyntaxError exception to avoid looping over and
 		# over again.
 		self._error_tokens = {}
+		
+		self.in_js_stmt = False
 
 	def _has_been_seen_before(self, token):
 		if token is None:
@@ -98,7 +100,17 @@ class Parser(object):
 				token.type, token.value, token.lineno, token.lexpos,
 				self.lexer.prev_token, self.lexer.token())
 			)
-
+	
+	def _has_stmt(self, node):
+		if hasattr(node, 'is_stmt'):
+			return True
+		if hasattr(node, '__iter__'):
+			ret = True
+			for c in node:
+				ret = ret and self._has_stmt(c)
+			return ret
+		return False
+	
 	def parse(self, text, debug = False):
 		return self.parser.parse(text, lexer = self.lexer, debug = debug)
 
@@ -144,6 +156,24 @@ class Parser(object):
 		"""source_elements : empty
 						   | source_element_list
 		"""
+		if isinstance(p[1], (list, tuple)):
+			result = []
+			dl = ast.HTMLDataList()
+			
+			for child in p[1]:
+				if hasattr(child, 'is_stmt'):
+					if len(dl):
+						result.append(dl)
+						dl = ast.HTMLDataList()
+					result.append(child)
+				elif child is not None:
+					dl.append(child)
+			if len(dl):
+				result.append(dl)
+			
+			p[0] = result
+			return
+			
 		p[0] = p[1]
 
 	def p_source_element_list(self, p):
@@ -157,10 +187,18 @@ class Parser(object):
 			p[0] = p[1]
 
 	def p_source_element(self, p):
+		# | function_declaration
 		"""source_element : statement
-						  | function_declaration
+						 
+						  | html_source
+						  | end_js
 		"""
 		p[0] = p[1]
+	
+	def p_end_js(self, p):
+		""" end_js : JS_TERMINATOR """
+		self.in_js_stmt = False
+		
 
 	def p_statement(self, p):
 		"""statement : block
@@ -179,8 +217,10 @@ class Parser(object):
 					 | try_statement
 					 | debugger_statement
 					 | function_declaration
-					 | html_source
+					 | js_html_stmt
 		"""
+		if isinstance(p[1], ast.Node):
+			p[1].is_stmt = True
 		p[0] = p[1]
 
 	# By having source_elements in the production we support
@@ -1233,10 +1273,31 @@ class Parser(object):
 		"""function_body : source_elements"""
 		p[0] = p[1]
 	
+	def p_js_html_stmt(self, p):
+		""" js_html_stmt : JS_OPEN js_check_in_stmt source_elements 
+		"""
+		p[0] = ast.HTMLJSContainer(p[3])
+	
+	def p_js_check_in_stmt(self, p):
+		""" js_check_in_stmt : """
+		if self.in_js_stmt:
+			raise SyntaxError("Cannot nest {%%} blocks")
+		self.in_js_stmt = True
+	
+#	def p_html_source(self, p):
+#		""" html_source : html_source html_source_item
+#		                | html_source_item
+#		"""
+#		
 	
 	def p_html_source(self, p):
-		""" html_source : html_data
-		                | html_doctype
+		""" html_source : html_source_item """
+		p[0] = p[1]
+	
+	def p_html_source_item(self, p):
+		""" html_source_item : html_data
+		                 | html_escaped_js
+		                 | html_embedded_js
 		                | html_tag
 		"""
 		p[0] = p[1]
@@ -1248,28 +1309,33 @@ class Parser(object):
 		"""
 		p[0] = ast.HTMLData(data = p[1])
 	
-	def p_html_doctype(self, p):
-		""" html_doctype : HTML_DOCTYPE
+	def p_html_escaped_js(self, p):
+		""" html_escaped_js : ESCAPED_OPEN expr ESCAPED_TERMINATOR
 		"""
-		# ignore for now
-		pass
+		
+		ident = ast.Identifier('escape')
+		ident.safe = True
+		
+		p[0] = ast.FunctionCall(
+			identifier = ident,
+			args = [p[2]]
+		)
+	
+	def p_html_embedded_js(self, p):
+		""" html_embedded_js : EXPRESSION_OPEN expr EXPRESSION_TERMINATOR
+		"""
+		
+		p[0] = p[2] 
 	
 	def p_html_tag(self, p):
-		""" html_tag : HTML_STARTTAG
-		             | HTML_ENDTAG
-		             | HTML_EMPTYTAG
+		""" html_tag : HTML_STARTTAG source_elements HTML_ENDTAG
 		"""
-		if not isinstance(p[1], LexToken):
-			return
-		if p[1].type == 'HTML_ENDTAG':
-			p[0] = ast.HTMLEndTag(name = p[1])
-		
-		elif p[1].type == 'HTML_STARTTAG':
+		print (p[1])
+		if isinstance(p[1], LexToken):
+			
 			p[0] = ast.HTMLTag(
-				name = p[1].name,
-				self_closing = p[1].self_closing,
-				attrs = p[1].attrs
+					name = p[1].name,
+					self_closing = p[1].self_closing,
+					attrs = p[1].attrs,
+					inner = ast.HTMLDataList(p[2])
 			)
-		
-		else:
-			p[0] = ast.HTMLData(data = p[1])

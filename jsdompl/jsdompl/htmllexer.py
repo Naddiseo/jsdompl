@@ -29,11 +29,26 @@ setattr(LexToken, '__str__', lex_token__str__)
 class Lexer(JSLexer):
 	tokens = tuple(list(JSLexer.tokens) + [
 		'HTML_CHARS', 'HTML_WS', 'HTML_COMMENT',
-		'HTML_DOCTYPE', 'HTML_STARTTAG', 'HTML_ENDTAG', 'HTML_EMPTYTAG'
+		'HTML_DOCTYPE', 'HTML_STARTTAG', 'HTML_ENDTAG', 'HTML_EMPTYTAG',
+		'JS_OPEN', 'ESCAPED_OPEN', 'EXPRESSION_OPEN'
 	])
+	
+	ttype = {
+		'{%'  : 'JS_TERMINATOR',
+		'{{'  : 'ESCAPED_TERMINATOR',
+		'{{{' : 'EXPRESSION_TERMINATOR'
+	}
+	
+	tbtype = {
+		'{%'  : 'JS_OPEN',
+		'{{'  : 'ESCAPED_OPEN',
+		'{{{' : 'EXPRESSION_OPEN'
+	}
 	
 	def input(self, text):
 		self.lexer = HTMLTokenizer(text)
+		self.lexpos = 0
+		self.lineno = 0
 	
 	def build(self, **kwargs):
 		pass
@@ -46,25 +61,23 @@ class Lexer(JSLexer):
 		if self.next_tokens:
 			return self.next_tokens.pop(0)
 		
-		html_tok = next(self._html_token())
+		try:
+			html_tok = next(self._html_token())
+			self.lexpos += len(html_tok['data'])
+			self.lineno = self.lexer.stream.position()[0]
+		except StopIteration:
+			return None
 		
 		tok = self._lextoken_from_html(html_tok)
 		
 		if tok.type == 'HTML_CHARS':
 			# possibly js
-			pretext, endtext = self._parse_chars(tok.value)
-			if pretext is not None:
-				tok.value = pretext
+			endtext = self._parse_chars(tok.value)
 			
 			while endtext is not None:
-				pretext, endtext = self._parse_chars(endtext)
-				if pretext is not None:
-					endtok = LexToken()
-					endtok.type = tok.type
-					endtok.lineno = tok.lineno
-					endtok.lexpos = tok.lexpos
-					endtok.value = pretext
-					self.next_tokens.append(endtok)
+				endtext = self._parse_chars(endtext)
+			
+			return self.next_tokens.pop(0)
 			
 		return tok
 	
@@ -81,8 +94,8 @@ class Lexer(JSLexer):
 			7 : 'HTML_PARSEERROR',
 		}[html_token['type']]
 		# TODO: fix lineno/lexpos
-		token.lineno = 0
-		token.lexpos = 0
+		token.lineno = self.lineno
+		token.lexpos = self.lexpos
 		
 		token.value = html_token['data']
 		
@@ -110,25 +123,44 @@ class Lexer(JSLexer):
 		m = js_start_rx.match(data)
 		
 		if m is None:
-			return None, None
+			return None
 		
 		pretext = m.group(1)
 		start_type = m.group(2)
-		ttype = {
-			'{%'  : 'JS_TERMINATOR',
-			'{{'  : 'ESCAPED_TERMINATOR',
-			'{{{' : 'EXPRESSION_TERMINATOR'
-		}
+		
+		self.lexpos -= len(data)
+		
+		if len(pretext):
+			pretext_tok = LexToken()
+			pretext_tok.type = 'HTML_CHARS'
+			pretext_tok.value = pretext
+			pretext_tok.lineno = self.lineno - pretext.count("\n")
+			pretext_tok.lexpos = self.lexpos
+			self.next_tokens.append(pretext_tok)
+			self.lexpos += len(pretext)
+		
+		start_tok = LexToken()
+		start_tok.type = self.tbtype[start_type]
+		start_tok.value = start_type
+		start_tok.lineno = self.lineno
+		start_tok.lexpos = self.lexpos
+		self.next_tokens.append(start_tok)
+		self.lexpos += len(start_type)
 		
 		js_lexer = JSLexer()
 		js_lexer.input(data[m.end(2):])
 		for t in js_lexer:
+			t.lineno += self.lineno - 1
+			t.lexpos = self.lexpos
+			self.lexpos += js_lexer.lexer.lexpos
+			
 			if t.type in ('EXPRESSION_TERMINATOR', 'ESCAPED_TERMINATOR', 'JS_TERMINATOR'):
-				if t.type != ttype[start_type]:
-					raise SyntaxError("Expected {} but got {} in char data `{}`".format(ttype[start_type], t.type, data))
+				if t.type != self.ttype[start_type]:
+					raise SyntaxError("Expected {} but got {} in char data `{}`".format(self.ttype[start_type], t.type, data))
+				self.next_tokens.append(t)
 				break
 			
 			self.next_tokens.append(t)
-			
-		endtext = data[m.end(2) + js_lexer.lexer.lexpos:]
-		return pretext, endtext
+		remaining_text = data[m.end(2) + js_lexer.lexer.lexpos:]
+		self.lexpos += len(remaining_text)
+		return remaining_text

@@ -6,6 +6,7 @@ __created__ = "Jun 28, 2013"
 from jsdompl.template import JSDomTemplate
 from jsdompl.htmllexer import Lexer
 from jsdompl.parser import Parser
+from jsdompl.visitors.jsdomplvisitor import JSDomplVisitor
 
 tpl = JSDomTemplate("""
 <!-- define({'jquery' : '$', 'underscore' : '_'}) -->
@@ -21,20 +22,23 @@ tpl = JSDomTemplate("""
 
 #print(tpl.get_template())
 
+input1 = """\
+<a></a>
+"""
+
+
+source = input1
+
 l = Lexer()
-l.input("""{% if (1) { %}
-<a>asdf </a>
-<div></div>
-{% } %}
-""")
+l.input(source)
 
 
-p = Parser(yacc_debug = True, yacc_optimize = False, yacctab = '')
-ast = p.parse(tpl.text, debug = True)
 
-from jsdompl.visitors.ecmavisitor import ECMAVisitor
-
-print(ECMAVisitor().visit(ast))
+p = Parser(yacc_debug = False, yacc_optimize = False, yacctab = '')
+#for t in l:
+#	print(t)
+ast = p.parse(source, debug = False)
+print(JSDomplVisitor().visit(ast))
 """
 define(['jquery', 'underscore'], function($, _) {
 	var C = document.createElement;

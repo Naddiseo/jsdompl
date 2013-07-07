@@ -31,7 +31,7 @@ try:
 except ImportError:
 	from odict import odict as OrderedDict
 
-from .lexer import Lexer
+from .htmllexer import Lexer
 
 
 ID_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'

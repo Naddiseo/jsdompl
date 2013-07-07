@@ -416,24 +416,46 @@ class This(Node):
 		return []
 
 class HTMLTag(Node):
-	def __init__(self, name, attrs = [], self_closing = False):
+	def __init__(self, name, attrs = [], self_closing = False, inner = None):
 		self.name = name
 		self.self_closing = self_closing
 		self.attrs = list(attrs)
+		self.inner = inner
 	
 	def children(self):
-		return self.attrs
-
-class HTMLEndTag(Node):
-	def __init__(self, name):
-		self.name = name
-	
-	def children(self):
-		return []
+		return [self.name, self.inner] + self.attrs 
 
 class HTMLData(Node):
 	def __init__(self, data):
-		self.data = data
+		self.data = data.replace('\n', '\\n').replace('\"', '\\"')
 	
 	def children(self):
 		return []
+	
+	def __str__(self):
+		return 'HTMLData({})'.format(self.data)
+	__repr__ = __str__
+
+class HTMLJSContainer(Node): pass
+
+class HTMLDataList(Node):
+	def __init__(self, data_list = []):
+		self.data_list = list(data_list)
+	
+	def __len__(self):
+		return len(self.data_list)
+	
+	def append(self, data):
+		if isinstance(data, HTMLDataList):
+			self.data_list += data.data_list
+		elif isinstance(data, (list, tuple)):
+			self.data_list += list(data)
+		else:
+			self.data_list.append(data)
+	
+	def __str__(self):
+		return 'HTMLDataList({})'.format(self.data_list)
+	__repr__ = __str__
+	
+	def children(self):
+		return self.data_list
