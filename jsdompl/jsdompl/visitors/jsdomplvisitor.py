@@ -421,7 +421,7 @@ class JSDomplVisitor(Visitor):
 			template = '({}.{})'
 		else:
 			template = '{}.{}'
-		s = template.format(self.visit(node.node), self.visit(node.identifier))
+		s = template.format(self.visit(node.node), node.identifier.value)
 		return s
 
 	def visit_BracketAccessor(self, node):
@@ -510,7 +510,7 @@ class JSDomplVisitor(Visitor):
 		return ret
 	
 	def visit_HTMLComment(self, node):
-		comment_data = node.data.strip()
+		comment_data = node.data['data'].strip()
 		if re.match(r'^\s*define\([^\)]*\)\s*$', comment_data):
 			st = parser.expr(comment_data)
 			c = st.compile()
