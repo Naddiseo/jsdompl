@@ -31,8 +31,7 @@ class Visitor(object):
 				
 
 class JSDomplVisitor(Visitor):
-	
-	def __init__(self):
+	def __init__(self, js_parser = None):
 		self.indent_level = 0
 		self.root_count = -1
 		self.text_count = -1
@@ -45,6 +44,12 @@ class JSDomplVisitor(Visitor):
 		self.tpl_args = []
 		
 		self.root_map = {}
+		
+		if js_parser is None:
+			from jsdompl.parser import Parser
+			js_parser = Parser(lex_optimize = False, lextab = '', yacc_optimize = False, yacctab = '', yacc_debug = False)
+		
+		self.p = js_parser
 	
 	def current_root(self):
 		return self.roots[-1]
@@ -480,8 +485,7 @@ class JSDomplVisitor(Visitor):
 			ret += self.visit(node.inner)
 			ret += self.pop_scope()
 		if len(node.attrs):
-			from jsdompl.parser import Parser
-			p = Parser(lex_optimize = False, lextab = '', yacc_optimize = False, yacctab = '', yacc_debug = False)
+			p = self.p
 			
 			for attr_name, attr_value in node.attrs:
 				attr_ast = p.parse(attr_value)

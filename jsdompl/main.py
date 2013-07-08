@@ -8,6 +8,9 @@ from jsdompl.htmllexer import Lexer
 from jsdompl.parser import Parser
 from jsdompl.visitors.jsdomplvisitor import JSDomplVisitor
 
+def main():
+	debug_parser()
+
 tpl = JSDomTemplate("""
 <!-- define({'jquery' : '$', 'underscore' : '_'}) -->
 <!-- Template('mylist', 'url', 'var_name') -->
@@ -26,19 +29,22 @@ input1 = """\
 <a title="title" href="hello-{{ b }}"></a>
 """
 
-
 source = input1
 
-l = Lexer()
-l.input(source)
+def debug_lexer():
+	l = Lexer()
+	l.input(source)
+	for t in l:
+		print(t)
 
+def debug_parser():
+	p = Parser(yacc_debug = False, yacc_optimize = False, yacctab = 'jsdompl-parser')
+	ast = p.parse(source, debug = False)
+	print(JSDomplVisitor(js_parser = p).visit(ast))
 
+if __name__ == '__main__':
+	main()
 
-p = Parser(yacc_debug = False, yacc_optimize = False, yacctab = '')
-for t in l:
-	print(t)
-ast = p.parse(source, debug = False)
-print(JSDomplVisitor().visit(ast))
 """
 define(['jquery', 'underscore'], function($, _) {
 	var C = document.createElement;
